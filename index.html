@@ -2,9 +2,25 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="theme-color" content="#0f1419">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0d1117">
 <title>RebarCut Pro — โปรแกรมคำนวณตัดเหล็กเสริม</title>
+
+<!-- PWA / iOS standalone app support -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="RebarCut">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="application-name" content="RebarCut Pro">
+<meta name="description" content="โปรแกรมคำนวณตัดเหล็กเสริมคอนกรีต — Bar Bending Schedule, Cutting List, Cost Optimization">
+
+<!-- Inline icon (SVG → data URI) เพื่อให้ไฟล์เดียวจบ -->
+<link rel="icon" type="image/svg+xml" href='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="22" fill="%23ff6b35"/><path d="M22 28h56M22 50h56M22 72h56" stroke="white" stroke-width="6" stroke-linecap="round" opacity=".6"/><path d="M34 18v64M66 18v64" stroke="white" stroke-width="8" stroke-linecap="round"/></svg>'>
+<link rel="apple-touch-icon" href='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180"><rect width="180" height="180" rx="40" fill="%23ff6b35"/><path d="M40 50h100M40 90h100M40 130h100" stroke="white" stroke-width="11" stroke-linecap="round" opacity=".6"/><path d="M62 32v116M118 32v116" stroke="white" stroke-width="15" stroke-linecap="round"/></svg>'>
+
+<!-- Inline web app manifest (data URI) -->
+<link rel="manifest" href='data:application/manifest+json;charset=utf-8,{"name":"RebarCut Pro","short_name":"RebarCut","description":"โปรแกรมคำนวณตัดเหล็กเสริมคอนกรีต","start_url":".","display":"standalone","orientation":"any","background_color":"%230d1117","theme_color":"%23ff6b35","icons":[{"src":"data:image/svg%2Bxml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 192 192%22><rect width=%22192%22 height=%22192%22 rx=%2240%22 fill=%22%23ff6b35%22/><path d=%22M40 56h112M40 96h112M40 136h112%22 stroke=%22white%22 stroke-width=%2212%22 stroke-linecap=%22round%22 opacity=%22.6%22/><path d=%22M66 38v116M126 38v116%22 stroke=%22white%22 stroke-width=%2216%22 stroke-linecap=%22round%22/></svg>","sizes":"192x192","type":"image/svg+xml","purpose":"any"}]}'>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
@@ -1039,6 +1055,13 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
           พอดีจอ
         </button>
         <button class="btn sm ghost" onclick="bldResetZoom()" title="100% (0)">รีเซ็ตซูม</button>
+        <span style="width:1px;height:18px;background:var(--line);margin:0 4px"></span>
+        <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--ink2);cursor:pointer">
+          <input type="checkbox" id="bldShowBendsChk" checked onchange="bldToggleBends(this.checked)" style="accent-color:var(--accent)">
+          เส้นโค้งงอ
+        </label>
+        <input type="range" id="bldBendR" min="0.5" max="4" step="0.1" value="1.5" oninput="bldSetBendRadius(this.value);document.getElementById('bldBendRVal').textContent=this.value+'d'" style="width:60px;accent-color:var(--accent)" title="รัศมีโค้งงอ (× ขนาดเหล็ก)">
+        <span id="bldBendRVal" style="font-size:10px;color:var(--accent);font-family:'JetBrains Mono';min-width:28px;font-weight:700">1.5d</span>
         <span style="flex:1"></span>
         <span style="font-size:10.5px;color:var(--ink3)">🖱️ ลูกกลิ้ง: ซูม · กลางเมาส์/Space: เลื่อน · F: พอดี</span>
       </div>
@@ -1847,6 +1870,8 @@ let bldLabels = [];      // override การแสดง label ต่อเส
 let bldSelLabel = -1;    // index label ที่เลือกอยู่ (-1 = ไม่เลือก)
 let bldLabelDefault = { color:'#ea580c', size:11, offset:16 };  // ค่าเริ่มต้น label
 let bldFontFamily = "'JetBrains Mono', monospace";  // ฟอนต์ที่ใช้แสดงตัวเลขในรูป
+let bldShowBends = true;     // วาดเส้นโค้งที่มุมงอ (90/135/180) ตามมาตรฐาน
+let bldBendRadius = 1.5;     // ตัวคูณรัศมีโค้ง (× ขนาดเหล็ก) — มาตรฐาน ~1-3d
 let bldTool = 'draw';    // 'draw' | 'move'
 let bldDrag = -1;        // index จุดที่กำลังลาก
 let bldHistory = [];     // สำหรับ undo
@@ -2264,10 +2289,35 @@ function bldRedrawCanvas(){
   document.getElementById('bldHint').style.display = bldPoints.length?'none':'block';
   if(!bldPoints.length){ ctx.setTransform(1,0,0,1,0,0); return; }
 
-  // เส้นเหล็ก
+  // เส้นเหล็ก — วาดเป็นโค้งที่มุมงอ (filleted corners) ตามมาตรฐานเขียนแบบ
   ctx.strokeStyle='#38bdf8'; ctx.lineWidth=5/bldZoom; ctx.lineJoin='round'; ctx.lineCap='round';
-  ctx.beginPath(); ctx.moveTo(bldPoints[0].x,bldPoints[0].y);
-  for(let i=1;i<bldPoints.length;i++) ctx.lineTo(bldPoints[i].x,bldPoints[i].y);
+  ctx.beginPath();
+  if(bldShowBends && bldPoints.length>=3){
+    // คำนวณ radius ของ fillet (world units) — สเกลเล็กๆ ดูเหมือนงานเขียนแบบ
+    const dia=parseInt(document.getElementById('bldDia').value)||12;
+    // 1 ม. = 70 px world. ใช้ radius = bldBendRadius × dia mm × 0.07 (เพื่อให้ดูเป็นสัดส่วน)
+    // ทำให้เห็นโค้งชัดบนหน้าจอ
+    const baseR = Math.max(8, bldBendRadius * dia * 0.7);
+    ctx.moveTo(bldPoints[0].x, bldPoints[0].y);
+    for(let i=1;i<bldPoints.length-1;i++){
+      const prev=bldPoints[i-1], cur=bldPoints[i], next=bldPoints[i+1];
+      // ความยาวของ segment ข้างเคียง — กำหนด radius ไม่เกินครึ่งหนึ่งของ segment ที่สั้นกว่า
+      const d1=Math.hypot(cur.x-prev.x,cur.y-prev.y);
+      const d2=Math.hypot(next.x-cur.x,next.y-cur.y);
+      const r=Math.min(baseR, d1*0.4, d2*0.4);
+      if(r<2){ ctx.lineTo(cur.x, cur.y); continue; }
+      // ตรวจว่าเป็นมุมแหลม (180°) หรือไม่
+      const ang=interiorAngle(prev,cur,next);
+      const bend=180-ang;
+      if(Math.abs(bend)<2){ ctx.lineTo(cur.x,cur.y); continue; }
+      // arcTo สร้างโค้งที่มุม
+      ctx.arcTo(cur.x, cur.y, next.x, next.y, r);
+    }
+    ctx.lineTo(bldPoints[bldPoints.length-1].x, bldPoints[bldPoints.length-1].y);
+  } else {
+    ctx.moveTo(bldPoints[0].x,bldPoints[0].y);
+    for(let i=1;i<bldPoints.length;i++) ctx.lineTo(bldPoints[i].x,bldPoints[i].y);
+  }
   ctx.stroke();
 
   // คำนวณจุดศูนย์กลางรูป — สำหรับ auto offset ออกนอกรูป
@@ -2357,6 +2407,14 @@ function bldSetDefaultSize(v){
 }
 function bldSetFont(f){
   bldFontFamily=f;
+  bldRedrawCanvas();
+}
+function bldToggleBends(on){
+  bldShowBends=!!on;
+  bldRedrawCanvas();
+}
+function bldSetBendRadius(v){
+  bldBendRadius=+v;
   bldRedrawCanvas();
 }
 function bldSelectLabel(i){
@@ -2465,7 +2523,43 @@ function bldSVGFromPts(points, lens, hookMode, dia, labels, font){
   const sc=Math.min((vw-pad*2)/w,(vh-pad*2)/h);
   const ox=pad+(vw-pad*2-w*sc)/2, oy=pad+(vh-pad*2-h*sc)/2;
   const tx=p=>ox+(p.x-minX)*sc, ty=p=>oy+(p.y-minY)*sc;
-  let d='M '+points.map(p=>`${tx(p).toFixed(1)} ${ty(p).toFixed(1)}`).join(' L ');
+  // สร้าง SVG path ที่มี arc ที่มุมงอ (ตามมาตรฐานเขียนแบบ)
+  const tpts=points.map(p=>({x:tx(p),y:ty(p)}));
+  let d;
+  const baseRsvg = dia ? Math.max(4, 1.5 * dia * 0.07 * sc) : 6;
+  if(tpts.length>=3){
+    d=`M ${tpts[0].x.toFixed(1)} ${tpts[0].y.toFixed(1)}`;
+    for(let i=1;i<tpts.length-1;i++){
+      const prev=tpts[i-1], cur=tpts[i], next=tpts[i+1];
+      const d1=Math.hypot(cur.x-prev.x,cur.y-prev.y);
+      const d2=Math.hypot(next.x-cur.x,next.y-cur.y);
+      const r=Math.min(baseRsvg, d1*0.4, d2*0.4);
+      // ตรวจมุม
+      const v1x=prev.x-cur.x, v1y=prev.y-cur.y;
+      const v2x=next.x-cur.x, v2y=next.y-cur.y;
+      const m1=Math.hypot(v1x,v1y)||1, m2=Math.hypot(v2x,v2y)||1;
+      const cosA=(v1x*v2x+v1y*v2y)/(m1*m2);
+      const angD=Math.acos(Math.max(-1,Math.min(1,cosA)))*180/Math.PI;
+      const bend=180-angD;
+      if(r<2 || Math.abs(bend)<2){
+        d+=` L ${cur.x.toFixed(1)} ${cur.y.toFixed(1)}`;
+        continue;
+      }
+      // จุดสัมผัสของวงโค้งบนเส้นเข้า/ออก
+      const tx1 = cur.x + (v1x/m1)*r;
+      const ty1 = cur.y + (v1y/m1)*r;
+      const tx2 = cur.x + (v2x/m2)*r;
+      const ty2 = cur.y + (v2y/m2)*r;
+      // คำนวณ sweep direction (โดยใช้ cross product)
+      const cross = v1x*v2y - v1y*v2x;
+      const sweep = cross<0 ? 1 : 0;
+      // ใช้ A (arc) — รัศมี r เท่ากันทั้ง x,y
+      d += ` L ${tx1.toFixed(1)} ${ty1.toFixed(1)} A ${r.toFixed(1)} ${r.toFixed(1)} 0 0 ${sweep} ${tx2.toFixed(1)} ${ty2.toFixed(1)}`;
+    }
+    d += ` L ${tpts[tpts.length-1].x.toFixed(1)} ${tpts[tpts.length-1].y.toFixed(1)}`;
+  } else {
+    d='M '+tpts.map(p=>`${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' L ');
+  }
   const cx=points.reduce((a,p)=>a+tx(p),0)/points.length;
   const cy=points.reduce((a,p)=>a+ty(p),0)/points.length;
 
